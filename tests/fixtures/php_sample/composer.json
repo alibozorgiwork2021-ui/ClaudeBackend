@@ -1,0 +1,11 @@
+{
+  "name": "acme/sample",
+  "require": {
+    "php": ">=8.1"
+  },
+  "autoload": {
+    "psr-4": {
+      "Acme\\": "src/"
+    }
+  }
+}
