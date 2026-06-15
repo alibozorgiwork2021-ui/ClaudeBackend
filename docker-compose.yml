@@ -1,0 +1,57 @@
+# Fully local, air-gapped AI stack: Ollama + ClaudeBackend.
+#
+# Ollama's port is deliberately NOT published to the host — the model server is
+# reachable only on the internal compose network, so nothing is exposed
+# unnecessarily. ClaudeBackend runs with CLAUDEBACKEND_LOCAL=1, which forces the
+# offline Ollama backend and blocks any external endpoint.
+#
+# Two-phase use:
+#   1) Pull the models you want (networking available the first time):
+#        docker compose up -d ollama
+#        docker compose exec ollama ollama pull qwen2.5-coder
+#        docker compose exec ollama ollama pull deepseek-coder-v2
+#   2) Run a development task (no external calls — air-gapped):
+#        docker compose run --rm claudebackend develop /work "Add a health endpoint" --dry-run
+#
+# Any Ollama-compatible model works — change the CLAUDEBACKEND_MODEL_* values
+# below (and the `ollama pull` names) to whatever you have pulled.
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - ollama-models:/root/.ollama
+    networks:
+      - claudebackend
+    # No `ports:` mapping — keep the model server off the host network.
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  claudebackend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      CLAUDEBACKEND_LOCAL: "1"
+      OLLAMA_BASE_URL: "http://ollama:11434/v1"
+      # Per-agent model routing (override with whatever you pulled).
+      CLAUDEBACKEND_MODEL_PLANNER: "qwen2.5-coder"
+      CLAUDEBACKEND_MODEL_CODER: "deepseek-coder-v2"
+      CLAUDEBACKEND_MODEL_VERIFIER: "deepseek-coder-v2"
+    volumes:
+      - ./workspace:/work
+    networks:
+      - claudebackend
+
+networks:
+  claudebackend:
+    driver: bridge
+
+volumes:
+  ollama-models:

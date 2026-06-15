@@ -1,0 +1,62 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "claudebackend"
+version = "0.7.0"
+description = "Universal multi-agent backend development system: a Planner/Coder/Verifier pipeline with a DevSecOps security gate (Claude Opus 4.8)"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Mohsen" }]
+dependencies = [
+    "anthropic>=0.69",
+    "openai>=1.40",
+    "mcp>=1.0",
+    "typer>=0.12",
+    "pydantic>=2",
+    "ruff>=0.6",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+# SAST half of the security gate. Optional: when bandit is absent the gate's
+# deterministic scan degrades to a recorded note and the Red Team LLM audit still
+# runs. Install with: pip install claudebackend[security]
+security = ["bandit>=1.7"]
+# Local TDD watcher (`claudebackend watch`). Optional: only the watch daemon needs
+# it. Install with: pip install claudebackend[watch]
+watch = ["watchdog>=3"]
+# Local air-gapped dashboard server (`claudebackend serve`). Optional: only the web
+# dashboard needs it; the core CLI/MCP never import it. The React UI in ui/ is built
+# and served separately and is never packaged into this wheel. Install with:
+# pip install claudebackend[web]
+web = ["starlette>=0.37", "uvicorn>=0.30"]
+
+[project.scripts]
+claudebackend = "claudebackend.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["claudebackend"]
+
+[tool.ruff]
+# Fixtures are deliberately Python 2 source; never lint them.
+extend-exclude = ["tests/fixtures"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Fixtures are deliberately Python 2; never collect them in our own suite.
+addopts = "--ignore=tests/fixtures"
+markers = [
+    "e2e: end-to-end test that runs a real backend dev run and needs ANTHROPIC_API_KEY (deselect with -m 'not e2e')",
+]
+
+# Per-agent model routing for a target project (read from the project being
+# developed, not from here). Uncomment in YOUR project's pyproject.toml — most
+# useful with `--local` (Ollama). CLI flags and env vars override these.
+# See docs/install/local_ai.md.
+# [tool.claudebackend.models]
+# planner  = "qwen2.5-coder"
+# coder    = "deepseek-coder-v2"
+# verifier = "deepseek-coder-v2"
